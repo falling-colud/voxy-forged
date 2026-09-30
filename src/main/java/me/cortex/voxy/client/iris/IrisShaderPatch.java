@@ -22,6 +22,9 @@ import static org.lwjgl.opengl.GL33.*;
 
 public class IrisShaderPatch {
     public static final int VERSION = ((IntSupplier)()->1).getAsInt();
+    // Version exposed to shaderpacks through the VOXY define (see MixinStandardMacros). 2 matches
+    // neo-voxy's patch format so packs written for either fork compile.
+    public static final int SHADER_DEFINE_VERSION = 2;
 
     public static final boolean IMPERSONATE_DISTANT_HORIZONS = System.getProperty("voxy.impersonateDHShader", "false").equalsIgnoreCase("true");
 
@@ -339,6 +342,10 @@ public class IrisShaderPatch {
                 }
                 voxyPatchData = builder.toString();
             }
+            // Some packs ship the chunk-fade-in marker function inside their voxy patch json; it is
+            // not json, and left in it fails the parse below and takes the whole pack down with it.
+            voxyPatchData = voxyPatchData.replaceAll("void _cfi_ignoreMarker\\(\\) \\{\\}", "");
+
             patchData = GSON.fromJson(voxyPatchData, PatchGson.class);
             if (patchData == null) {
                 throw new IllegalStateException("Voxy patch json returned null, this is most likely due to malformed json file");

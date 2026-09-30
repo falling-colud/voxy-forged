@@ -10,9 +10,12 @@ import net.minecraft.client.renderer.LightTexture;
 public class LightMapHelper {
     public static void bind(int lightingIndex) {
         glBindSampler(lightingIndex, 0);
+        glBindTextureUnit(lightingIndex, getLightmapTextureId());
+    }
+
+    public static int getLightmapTextureId() {
         // MC 1.21.1: Use accessor mixin to get the private DynamicTexture field, then call getId()
         LightTexture lightTexture = Minecraft.getInstance().gameRenderer.lightTexture();
-        int glId = ((AccessorLightTexture) lightTexture).voxy$getLightTexture().getId();
-        glBindTextureUnit(lightingIndex, glId);
+        return ((AccessorLightTexture) lightTexture).voxy$getLightTexture().getId();
     }
 }

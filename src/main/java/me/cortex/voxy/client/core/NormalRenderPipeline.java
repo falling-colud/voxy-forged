@@ -1,6 +1,8 @@
 package me.cortex.voxy.client.core;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import me.cortex.voxy.client.config.VoxyConfig;
+import me.cortex.voxy.client.core.util.FogCompat;
 import me.cortex.voxy.client.core.gl.GlFramebuffer;
 import me.cortex.voxy.client.core.gl.GlTexture;
 import me.cortex.voxy.client.core.gl.shader.Shader;
@@ -38,7 +40,6 @@ public class NormalRenderPipeline extends AbstractRenderPipeline {
     private GlTexture colourSSAOTex;
     private final GlFramebuffer fbSSAO = new GlFramebuffer();
 
-    private final boolean useEnvFog;
     private final FullscreenBlit finalBlit;
 
     private final Shader ssaoCompute = Shader.make()
@@ -47,9 +48,11 @@ public class NormalRenderPipeline extends AbstractRenderPipeline {
 
     protected NormalRenderPipeline(AsyncNodeManager nodeManager, NodeCleaner nodeCleaner, HierarchicalOcclusionTraverser traversal, BooleanSupplier frexSupplier) {
         super(nodeManager, nodeCleaner, traversal, frexSupplier, false);
-        this.useEnvFog = VoxyConfig.CONFIG.useEnvironmentalFog;
+        // USE_ENV_FOG is always compiled in: even with the user's environmental fog switched off,
+        // the composite must still reproduce "required" fog (underwater/lava/blindness/darkness),
+        // otherwise LOD terrain draws clear over fog the vanilla pass is applying.
         this.finalBlit = new FullscreenBlit("voxy:post/blit_texture_depth_cutout.frag",
-                a->a.defineIf("USE_ENV_FOG", this.useEnvFog).define("EMIT_COLOUR"));
+                a->a.define("USE_ENV_FOG").define("EMIT_COLOUR"));
     }
 
     @Override
@@ -104,14 +107,87 @@ public class NormalRenderPipeline extends AbstractRenderPipeline {
     @Override
     protected void finish(Viewport<?> viewport, int sourceFrameBuffer, int srcWidth, int srcHeight) {
         this.finalBlit.bind();
-        // MC 1.21.1 / Sodium 0.6.x: Environmental fog disabled
-        // FogParameters.environmental*() methods don't exist in Sodium 0.6.x
-        // RenderSystem.getShaderFog*() returns standard fog (underwater/lava) not environmental fog
-        // TODO: Research Sodium 0.6.x environmental fog API or implement custom distance-based fog
-        if (this.useEnvFog) {
-            // Disable fog uniforms - set to zero (no fog effect)
-            glUniform4f(4, 0, 0, 0, 0);
+        float fogStart;
+        float fogEnd;
+        float[] fogColor;
+        boolean requiredFog;
+        boolean useFog;
+        if (FogCompat.BETTER_FOG) {
+            // Better Fog owns the frame's fog (MixinFogRenderer stands down entirely). Sample it
+            // LIVE at composite time - the exact values the near terrain was just drawn with -
+            // but do NOT apply that line verbatim: a near-fog line saturates just past its own
+            // end and would bury every LOD beyond it in solid fog. Instead the LOD gets a second
+            // line through two pinned points (the contract the old micvoxy bridge proved out):
+            //   - the handoff (vanilla render distance): same opacity as the near fog there,
+            //     so the two meet without a step and the seam stays invisible;
+            //   - the LOD fog edge: full opacity, so the world's edge is buried, not a rim.
+            // When the near fog already saturates before the handoff (underwater, blindness,
+            // dense weather), atHandoff hits 1, the slope dies, and the near line is applied
+            // verbatim - which is exactly right: nothing should be visible past that fog.
+            float nearStart = RenderSystem.getShaderFogStart();
+            float nearEnd = RenderSystem.getShaderFogEnd();
+            float span = nearEnd - nearStart;
+            fogColor = RenderSystem.getShaderFogColor();
+            requiredFog = true;
+            // A pushed-to-infinity or degenerate range means "no fog this frame".
+            useFog = Float.isFinite(span) && span > 1.0e-4f && Float.isFinite(nearStart) && nearEnd < 1.0e7f;
+            fogStart = nearStart;
+            fogEnd = nearEnd;
+            if (useFog) {
+                float edge = VoxyConfig.CONFIG.getLodRenderDistanceBlocks()
+                        * (VoxyConfig.CONFIG.fogDistancePercent / 100.0f);
+                float handoff = Minecraft.getInstance().options.getEffectiveRenderDistance() * 16.0f;
+                // Needs real room between handoff and edge, or the curve is a cliff.
+                if (edge > handoff + 16.0f) {
+                    float atHandoff = Math.clamp((handoff - nearStart) / span, 0.0f, 1.0f);
+                    float slope = (1.0f - atHandoff) / (edge - handoff);
+                    if (Float.isFinite(slope) && slope > 0.0f) {
+                        // Same line, expressed as the (start, end) pair the shader consumes.
+                        fogStart = handoff - atHandoff / slope;
+                        fogEnd = fogStart + 1.0f / slope;
+                    }
+                }
+            }
+        } else {
+            var vrs = IGetVoxyRenderSystem.getNullable();
+            fogStart = vrs != null ? vrs.getCapturedFogStart() : RenderSystem.getShaderFogStart();
+            fogEnd = vrs != null ? vrs.getCapturedFogEnd()   : RenderSystem.getShaderFogEnd();
+            fogColor = vrs != null ? vrs.getCapturedFogColor() : RenderSystem.getShaderFogColor();
+            requiredFog = vrs != null && vrs.isCapturedFogRequired();
+
+            boolean useOptionalFog = VoxyConfig.CONFIG.useEnvironmentalFog
+                    && VoxyConfig.CONFIG.fogIntensity > 0.0f;
+            if (!requiredFog && useOptionalFog) {
+                fogEnd = VoxyConfig.CONFIG.getLodRenderDistanceBlocks()
+                        * (VoxyConfig.CONFIG.fogDistancePercent / 100.0f);
+                fogStart = fogEnd * (VoxyConfig.CONFIG.fogStartPercent / 100.0f);
+            }
+            float fogRange = Math.abs(fogEnd - fogStart);
+            useFog = requiredFog
+                    ? fogRange > 1.0e-4f
+                    : useOptionalFog && fogRange > 1.0f;
+        }
+
+        if (useFog) {
+            glUniform2f(4, fogStart, fogEnd);
+            glUniform4f(5, fogColor[0], fogColor[1], fogColor[2], 1.0f);
+            glUniform1i(6, RenderSystem.getShaderFogShape().getIndex());
+            // Required fog (the camera's medium, an effect, or fog another mod owns) is applied
+            // exactly as it was computed for the near terrain: full intensity, no density bend.
+            // Optional distance fog uses the user's intensity/density instead.
+            glUniform1f(7, requiredFog ? 1.0f : Math.clamp(VoxyConfig.CONFIG.fogIntensity, 0.0f, 1.0f));
+            glUniform1f(8, requiredFog ? 0.0f : Math.clamp(VoxyConfig.CONFIG.fogDensity, 0.0f, 1.0f));
+            // Always the smoothstep curve: Sodium runs every fog type through one
+            // smoothstep(fogStart, fogEnd, dist) (assets/sodium/shaders/include/fog.glsl), so a
+            // linear ramp here would part company with the near terrain mid-fade and show a seam.
+            glUniform1i(9, 0);
+        } else {
+            glUniform2f(4, 0, 0);
             glUniform4f(5, 0, 0, 0, 0);
+            glUniform1i(6, 0);
+            glUniform1f(7, 0);
+            glUniform1f(8, 0);
+            glUniform1i(9, 0);
         }
 
         glBindTextureUnit(3, this.colourSSAOTex.id);

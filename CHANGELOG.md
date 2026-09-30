@@ -12,6 +12,21 @@
 - New commands: `/voxy distantgen status|pause|resume|reset`.
 - When the standalone **Groundwork** pregeneration mod is installed, Voxy's built-in distant generation steps aside automatically - Groundwork takes over generation and feeds Voxy through its event bridge.
 
+### Fog (reworked)
+- **LOD fog now follows the game's real fog.** The final fog of each frame (including changes other mods make) is reproduced on LOD terrain with the same smoothstep curve Sodium uses, so there is no seam where near chunks hand off to LODs. Ported from [neo-voxy](https://github.com/NHblock-Johnsnow/neo-voxy).
+- Water, lava, blindness and darkness fog always apply to LODs; only plain distance fog is pushed out to the LOD distance.
+- Better Fog is detected and left in charge of the fog; the LODs get a matching second fog line that starts at Better Fog's opacity at the vanilla render distance and reaches full opacity at the LOD fog edge.
+- New options: sky fog distance, fog intensity, fog density, fog start/end distance, cave fog (fades in when fully underground, off by default).
+- Clouds can extend with the LOD render distance, or use a fixed distance.
+
+### Shader (Iris) fixes
+- Non-mipped depth samplers, `VOXY=2` versioned define, dynamic lightmap sampler, and a pack-marker strip fix (ported from neo-voxy).
+
+### Chunk ingest fixes
+- Chunks are ingested as soon as they have block data and light, so the outermost loaded ring no longer shows a void at the render-distance edge on servers.
+- Chunks are always captured right before they unload (previously only with Bobby installed).
+- Fixed the client chunk ring buffer occasionally handing back the wrong chunk, which re-ingested an unrelated chunk and skipped the requested one.
+
 ## 1.0.0 — 2026-06-26
 
 First stable release of the NeoForge 1.21.1 port, updated to the modern **Sodium 0.8** backport.

@@ -73,6 +73,28 @@ public class VoxyRenderSystem {
 
     private final AbstractRenderPipeline pipeline;
 
+    // Fog state captured by MixinFogRenderer at the end of setupFog, i.e. after vanilla's
+    // medium/effect fog AND every other mod's RenderFog listener have run. The LOD composite
+    // (NormalRenderPipeline.finish) reproduces this fog on LOD terrain. "required" marks fog
+    // that represents the camera's physical medium or an effect (water/lava/blindness/...),
+    // which must be applied even when the user's optional environmental fog is off.
+    private float capturedFogStart;
+    private float capturedFogEnd;
+    private boolean capturedFogRequired;
+    private final float[] capturedFogColor = new float[4];
+
+    public void setCapturedFog(float fogStart, float fogEnd, float[] fogColor, boolean required) {
+        this.capturedFogStart = fogStart;
+        this.capturedFogEnd = fogEnd;
+        this.capturedFogRequired = required;
+        System.arraycopy(fogColor, 0, this.capturedFogColor, 0, 4);
+    }
+
+    public float getCapturedFogStart() { return this.capturedFogStart; }
+    public float getCapturedFogEnd()   { return this.capturedFogEnd; }
+    public boolean isCapturedFogRequired() { return this.capturedFogRequired; }
+    public float[] getCapturedFogColor() { return this.capturedFogColor; }
+
     private static AbstractSectionRenderer.Factory<?,? extends IGeometryData> getRenderBackendFactory() {
         //TODO: need todo a thing where selects optimal section render based on if supports the pipeline and geometry data type
         return MDICSectionRenderer.FACTORY;
@@ -236,9 +258,21 @@ public class VoxyRenderSystem {
     // Set if Voxy's Iris LOD pipeline throws while rendering; we then skip LOD-under-shaders for the
     // session so shaders keep working instead of the game crashing every frame.
     private boolean irisLodRenderBroken = false;
+    private boolean warnedDefaultFramebuffer = false;
 
     public void renderOpaque(Viewport<?> viewport) {
         if (viewport == null) {
+            return;
+        }
+        // Another mod can leave the window framebuffer bound when the level starts rendering (Immersive Portals'
+        // framebuffer renderer did, on the first world frame and after every resize). There is no depth to source
+        // from it, so skip the LOD draw for that frame instead of crashing the game (checked before any GL state
+        // is touched, so the early return needs no cleanup).
+        if (GL11.glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING) == 0) {
+            if (!this.warnedDefaultFramebuffer) {
+                this.warnedDefaultFramebuffer = true;
+                Logger.warn("The window framebuffer was bound when LODs went to render (another mod left it bound); skipping LOD rendering on such frames");
+            }
             return;
         }
         // Skip Voxy LOD during Iris' shadow pass: the LOD pipeline's framebuffer isn't valid there and
@@ -258,9 +292,9 @@ public class VoxyRenderSystem {
             viewport.setScreenSize(window.getWidth(), window.getHeight()).update();
         }
 
-        // MC 1.21.1 NeoForge: Fog is handled by VoxyClientEvents.onRenderFog()
-        // which listens to ViewportEvent.RenderFog and pushes fog to infinity
-        // BEFORE terrain renders. This ensures no fog wall at vanilla render distance.
+        // MC 1.21.1 NeoForge: Fog is handled by MixinFogRenderer (TAIL of setupFog), which
+        // captures the final fog state into setCapturedFog() for the LOD composite and pushes
+        // only plain distance fog to infinity so there is no fog wall at vanilla render distance.
 
         TimingStatistics.resetSamplers();
 

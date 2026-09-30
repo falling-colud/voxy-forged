@@ -259,7 +259,9 @@ class MixinValidator:
 
 def main():
     mc_sources = Path('.reference/minecraft/1.21.1/decompiled')
-    src_dir = Path('src/main/java')
+    # Resolve to an absolute path: validate_mixin_file() prints mixin_file.relative_to(Path.cwd()), which
+    # raises ValueError when the file path is relative while cwd is absolute.
+    src_dir = Path('src/main/java').resolve()
 
     validator = MixinValidator(str(mc_sources))
     exit_code = validator.validate_all(src_dir)

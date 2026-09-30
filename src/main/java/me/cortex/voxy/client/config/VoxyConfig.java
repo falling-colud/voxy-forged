@@ -31,6 +31,32 @@ public class VoxyConfig {
     public int serviceThreads = (int) Math.max(CpuLayout.getCoreCount()/1.5, 1);
     public float subDivisionSize = 64;
     public boolean useEnvironmentalFog = true;
+
+    // End distance of sky fog and of the LOD terrain's own distance fog, in chunks. Also the
+    // fog end MixinFogRenderer captures for the composite when only plain distance fog is live.
+    public int skyFogDistance = 96;
+    // Strength of the optional LOD distance fog: 0 = invisible, 1 = full fog colour at the end.
+    public float fogIntensity = 1.0f;
+    // 0 = the same smoothstep curve Sodium's terrain fog uses; >0 bends the curve exponential
+    // (fog stays thin until near the end distance, then thickens).
+    public float fogDensity = 0.0f;
+    // Where the optional LOD fog ends, as a percentage of the LOD render distance.
+    public int fogDistancePercent = 100;
+    // Where the optional LOD fog starts, as a percentage of its end distance.
+    public int fogStartPercent = 50;
+
+    // Cave fog: pull the fog in close while the camera sits in full darkness underground
+    // (zero sky light; dimensions without sky light are exempt). Applies to both the vanilla
+    // pass and the LOD composite, and stands down while Better Fog owns the fog.
+    public boolean caveFogEnabled = false;
+    public int caveFogDistance = 24;
+
+    // Clouds: when adapt is on, Sodium's cloud render distance follows the LOD render distance
+    // (never below vanilla); otherwise cloudDistance chunks (0 = leave vanilla alone).
+    public static final int MAX_CLOUD_DISTANCE = 128;
+    public boolean adaptCloudDistance = true;
+    public int cloudDistance = 0;
+
     public boolean dontUseSodiumBuilderThreads = true;
 
     // Runtime toggle for the LOD colour/brightness fix, so it can be compared against raw brightness live.
@@ -85,6 +111,7 @@ public class VoxyConfig {
                 try (FileReader reader = new FileReader(path.toFile())) {
                     var conf = GSON.fromJson(reader, VoxyConfig.class);
                     if (conf != null) {
+                        conf.sanitize();
                         conf.save();
                         return conf;
                     } else {
@@ -135,5 +162,22 @@ public class VoxyConfig {
 
     public boolean isRenderingEnabled() {
         return VoxyCommon.isAvailable() && this.enabled && this.enableRendering;
+    }
+
+    // Clamp hand-edited config values into the ranges the renderer assumes; out-of-range fog or
+    // cloud values otherwise reach the shaders/mixins unchecked.
+    private void sanitize() {
+        this.skyFogDistance = Math.clamp(this.skyFogDistance, 0, 1024);
+        this.fogIntensity = Math.clamp(this.fogIntensity, 0.0f, 1.0f);
+        this.fogDensity = Math.clamp(this.fogDensity, 0.0f, 1.0f);
+        this.fogDistancePercent = Math.clamp(this.fogDistancePercent, 5, 200);
+        this.fogStartPercent = Math.clamp(this.fogStartPercent, 0, 95);
+        this.caveFogDistance = Math.clamp(this.caveFogDistance, 8, 256);
+        this.cloudDistance = Math.clamp(this.cloudDistance, 0, MAX_CLOUD_DISTANCE);
+    }
+
+    public int getLodRenderDistanceBlocks() {
+        // sectionRenderDistance is in top-level sections of 32 chunks; *32*16 converts to blocks.
+        return Math.clamp(this.sectionRenderDistance * 32 * 16, 64, 32768);
     }
 }

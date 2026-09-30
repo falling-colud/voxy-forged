@@ -33,7 +33,9 @@ public class VoxySamplers {
                     return 0;
                 }
                 return dt.id;
-            }, GlSampler.MIPPED_NEAREST,opaqueNames);
+            // Depth textures have no mip chain; a mipped sampler on them returns undefined values
+            // on some drivers, breaking any pack that samples vxDepthTex*.
+            }, new GlSampler(false, true, false, false), opaqueNames);
 
             samplers.addDynamicSampler(TextureType.TEXTURE_2D, () -> {
                 var pipeData = ((IGetIrisVoxyPipelineData)pipeline).voxy$getPipelineData();
@@ -49,7 +51,7 @@ public class VoxySamplers {
                     return 0;
                 }
                 return dt.id;
-            }, GlSampler.MIPPED_NEAREST,translucentNames);
+            }, new GlSampler(false, true, false, false), translucentNames);
         }
     }
 }

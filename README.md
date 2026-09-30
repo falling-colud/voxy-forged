@@ -10,6 +10,7 @@
 
 - **Original Repository:** [MCRcortex/voxy](https://github.com/MCRcortex/voxy)
 - **Original Author:** [MCRcortex](https://github.com/MCRcortex)
+- **Fog and Iris fixes** ported from [NHblock-Johnsnow/neo-voxy](https://github.com/NHblock-Johnsnow/neo-voxy), a NeoForge Voxy fork built on this one.
 
 This repository is a community port to NeoForge 1.21.1, created because the original author has indicated they will not be backporting to this version. We are deeply grateful for MCRcortex's work on Voxy.
 

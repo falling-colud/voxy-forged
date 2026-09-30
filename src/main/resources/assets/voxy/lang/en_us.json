@@ -46,7 +46,34 @@
   "voxy.config.general.renderDistance.tooltip": "Render distance of voxy in chunks",
 
   "voxy.config.general.environmental_fog": "Enable environmental fog",
-  "voxy.config.general.environmental_fog.tooltip": "Enables or disables voxy rendering environmental fog",
+  "voxy.config.general.environmental_fog.tooltip": "Blend distance fog over LOD terrain. Fog from being underwater/in lava or from blindness/darkness is always applied to LODs, even with this off.",
+
+  "voxy.config.general.skyFogDistance": "Sky fog distance",
+  "voxy.config.general.skyFogDistance.tooltip": "End distance of the sky fog and of the LOD terrain's distance fog, in chunks",
+
+  "voxy.config.general.fogIntensity": "Fog intensity",
+  "voxy.config.general.fogIntensity.tooltip": "Strength of the LOD distance fog. 0% disables it, 100% reaches the full fog colour at the end distance.",
+
+  "voxy.config.general.fogDensity": "Fog density",
+  "voxy.config.general.fogDensity.tooltip": "0% matches Sodium's terrain fog curve. Higher values keep fog thin until near the end distance, then thicken it sharply.",
+
+  "voxy.config.general.fogDistancePercent": "Fog end distance",
+  "voxy.config.general.fogDistancePercent.tooltip": "Where the LOD distance fog ends, as a percentage of the LOD render distance",
+
+  "voxy.config.general.fogStartPercent": "Fog start distance",
+  "voxy.config.general.fogStartPercent.tooltip": "Where the LOD distance fog starts fading in, as a percentage of its end distance. 0% = fog rises from right in front of you, 95% = a thin fog band at the end distance.",
+
+  "voxy.config.general.caveFog": "Cave fog",
+  "voxy.config.general.caveFog.tooltip": "Pull the fog in close while you are fully underground (no sky light), on both normal terrain and LODs. Fades in and out smoothly when entering or leaving caves. Stands down when Better Fog is installed.",
+
+  "voxy.config.general.caveFogDistance": "Cave fog distance",
+  "voxy.config.general.caveFogDistance.tooltip": "How far you can see before cave fog fully sets in",
+
+  "voxy.config.general.adaptCloudDistance": "Extend clouds with LODs",
+  "voxy.config.general.adaptCloudDistance.tooltip": "Extend Sodium's cloud render distance to match the LOD render distance, so clouds don't stop at the vanilla distance while terrain keeps going",
+
+  "voxy.config.general.cloudDistance": "Cloud distance",
+  "voxy.config.general.cloudDistance.tooltip": "Fixed cloud render distance in chunks, used when 'Extend clouds with LODs' is off. Vanilla = leave the cloud distance alone.",
 
   "voxy.config.general.render_fog": "Enable render fog",
   "voxy.config.general.render_fog.tooltip": "Enables or disables render fog effect",

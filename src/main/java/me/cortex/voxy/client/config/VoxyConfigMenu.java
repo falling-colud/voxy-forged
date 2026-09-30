@@ -123,11 +123,64 @@ public class VoxyConfigMenu implements ConfigEntryPoint {
                                             }
                                         }, "voxy:rendering", RENDER_RELOAD)
                         ), new Group(
+                                // All fog values are read per frame in NormalRenderPipeline.finish
+                                // (the shader always compiles USE_ENV_FOG), so none need a reload.
                                 new BoolOption(
                                         "voxy:eviromental_fog",
                                         Component.translatable("voxy.config.general.environmental_fog"),
-                                        ()->CFG.useEnvironmentalFog, v->CFG.useEnvironmentalFog=v)
-                                        .setPostChangeFlags(RENDER_RELOAD)
+                                        ()->CFG.useEnvironmentalFog, v->CFG.useEnvironmentalFog=v),
+                                new IntOption(
+                                        "voxy:sky_fog_distance",
+                                        Component.translatable("voxy.config.general.skyFogDistance"),
+                                        ()->CFG.skyFogDistance, v->CFG.skyFogDistance=v,
+                                        new Range(16, 512, 8))
+                                        .setFormatter(v->Component.literal(v + " chunks")),
+                                new IntOption(
+                                        "voxy:fog_intensity",
+                                        Component.translatable("voxy.config.general.fogIntensity"),
+                                        ()->Math.round(CFG.fogIntensity*100), v->CFG.fogIntensity=v/100.0f,
+                                        new Range(0, 100, 5))
+                                        .setFormatter(v->Component.literal(v + "%")),
+                                new IntOption(
+                                        "voxy:fog_density",
+                                        Component.translatable("voxy.config.general.fogDensity"),
+                                        ()->Math.round(CFG.fogDensity*100), v->CFG.fogDensity=v/100.0f,
+                                        new Range(0, 100, 5))
+                                        .setFormatter(v->Component.literal(v + "%")),
+                                new IntOption(
+                                        "voxy:fog_distance_percent",
+                                        Component.translatable("voxy.config.general.fogDistancePercent"),
+                                        ()->CFG.fogDistancePercent, v->CFG.fogDistancePercent=v,
+                                        new Range(5, 200, 5))
+                                        .setFormatter(v->Component.literal(v + "%")),
+                                new IntOption(
+                                        "voxy:fog_start_percent",
+                                        Component.translatable("voxy.config.general.fogStartPercent"),
+                                        ()->CFG.fogStartPercent, v->CFG.fogStartPercent=v,
+                                        new Range(0, 95, 5))
+                                        .setFormatter(v->Component.literal(v + "%"))
+                        ), new Group(
+                                new BoolOption(
+                                        "voxy:cave_fog",
+                                        Component.translatable("voxy.config.general.caveFog"),
+                                        ()->CFG.caveFogEnabled, v->CFG.caveFogEnabled=v),
+                                new IntOption(
+                                        "voxy:cave_fog_distance",
+                                        Component.translatable("voxy.config.general.caveFogDistance"),
+                                        ()->CFG.caveFogDistance, v->CFG.caveFogDistance=v,
+                                        new Range(8, 128, 4))
+                                        .setFormatter(v->Component.literal(v + " blocks"))
+                        ), new Group(
+                                new BoolOption(
+                                        "voxy:adapt_cloud_distance",
+                                        Component.translatable("voxy.config.general.adaptCloudDistance"),
+                                        ()->CFG.adaptCloudDistance, v->CFG.adaptCloudDistance=v),
+                                new IntOption(
+                                        "voxy:cloud_distance",
+                                        Component.translatable("voxy.config.general.cloudDistance"),
+                                        ()->CFG.cloudDistance, v->CFG.cloudDistance=v,
+                                        new Range(0, VoxyConfig.MAX_CLOUD_DISTANCE, 8))
+                                        .setFormatter(v->v==0?Component.literal("Vanilla"):Component.literal(v + " chunks"))
                         ), new Group(
                                 new BoolOption(
                                         "voxy:render_debug",
