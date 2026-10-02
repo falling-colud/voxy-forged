@@ -22,8 +22,10 @@ import static org.lwjgl.opengl.GL33.*;
 
 public class IrisShaderPatch {
     public static final int VERSION = ((IntSupplier)()->1).getAsInt();
-    // Version exposed to shaderpacks through the VOXY define (see MixinStandardMacros). 2 matches
-    // neo-voxy's patch format so packs written for either fork compile.
+    // Version exposed to shaderpacks through the VOXY define (see MixinStandardMacros). Upstream raised
+    // it to 2 together with the depth fix in IrisVoxyRenderPipeline.postOpaquePreTranslucent, so a pack
+    // that sees VOXY >= 2 may assume vxDepthTex* reads "nothing here" wherever vanilla terrain covers
+    // the pixel. The two belong together: advertise 2 only while that fix is in.
     public static final int SHADER_DEFINE_VERSION = 2;
 
     public static final boolean IMPERSONATE_DISTANT_HORIZONS = System.getProperty("voxy.impersonateDHShader", "false").equalsIgnoreCase("true");
@@ -178,6 +180,7 @@ public class IrisShaderPatch {
         public boolean excludeLodsFromVanillaDepth;
         public float[] renderScale;
         public boolean useViewportDims;
+        public boolean skipShaderDepthHackFix;
         //public boolean deferTranslucentRendering;
         public String checkValid() {
             if (this.blending != null) {
@@ -227,6 +230,10 @@ public class IrisShaderPatch {
 
     public boolean useViewportDims() {
         return this.patchData.useViewportDims;
+    }
+
+    public boolean skipShaderDepthHackFix() {
+        return this.patchData.skipShaderDepthHackFix;
     }
 
     public Int2ObjectMap<String> getSSBOs() {

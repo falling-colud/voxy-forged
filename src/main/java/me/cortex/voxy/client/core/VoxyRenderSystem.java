@@ -499,6 +499,11 @@ public class VoxyRenderSystem {
         //Done here as is allows less gl state resetup
         this.modelService.tick(100_000_000);
         GL11.glFinish();
+        return this.hasPendingWork();
+    }
+
+    //True while any model bake, mesh build or node update is still queued
+    public boolean hasPendingWork() {
         return this.nodeManager.hasWork() || this.renderGen.getTaskCount()!=0 || !this.modelService.areQueuesEmpty();
     }
 

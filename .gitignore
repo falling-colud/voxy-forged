@@ -3,6 +3,7 @@
 /.idea/
 /build/
 /run/
+/run-*/
 /out/
 /logs/
 

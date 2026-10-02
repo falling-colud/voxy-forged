@@ -28,6 +28,10 @@ public class IrisVoxyRenderPipeline extends AbstractRenderPipeline {
     private final FullscreenBlit depthBlit = new FullscreenBlit("voxy:post/blit_texture_depth_cutout.frag");
     public final DepthFramebuffer fbTranslucent = new DepthFramebuffer(this.fb.getFormat());
 
+    // Draws the far plane over every pixel vanilla terrain covers, once the opaque LODs are down - see
+    // postOpaquePreTranslucent. Null when the shaderpack asked to keep the old depth (skipShaderDepthHackFix).
+    private final FullscreenBlit shaderDepthHackFixTransformBlit;
+
     private final GlBuffer shaderUniforms;
 
     public IrisVoxyRenderPipeline(IrisVoxyRenderPipelineData data, AsyncNodeManager nodeManager, NodeCleaner nodeCleaner, HierarchicalOcclusionTraverser traversal, BooleanSupplier frexSupplier) {
@@ -63,6 +67,12 @@ public class IrisVoxyRenderPipeline extends AbstractRenderPipeline {
         } else {
             this.shaderUniforms = null;
         }
+
+        if (!this.data.skipShaderDepthHackFix) {
+            this.shaderDepthHackFixTransformBlit = new FullscreenBlit("voxy:post/fullscreen2.vert", "voxy:post/noop.frag");
+        } else {
+            this.shaderDepthHackFixTransformBlit = null;
+        }
     }
 
     @Override
@@ -79,6 +89,10 @@ public class IrisVoxyRenderPipeline extends AbstractRenderPipeline {
 
         this.depthBlit.delete();
         this.fbTranslucent.free();
+
+        if (this.shaderDepthHackFixTransformBlit != null) {
+            this.shaderDepthHackFixTransformBlit.delete();
+        }
 
         if (this.shaderUniforms != null) {
             this.shaderUniforms.free();
@@ -128,6 +142,28 @@ public class IrisVoxyRenderPipeline extends AbstractRenderPipeline {
 
     @Override
     protected void postOpaquePreTranslucent(Viewport<?> viewport) {
+        // initDepthStencil seeds the LOD depth buffer from the vanilla depth wherever vanilla terrain covers
+        // the pixel, so LODs behind it fail the depth test and the occlusion traversal can cull against it.
+        // That seed is not an LOD depth - it is not even in Voxy's projection - yet it is what a shaderpack
+        // gets from vxDepthTexOpaque / vxDepthTexTrans there: an LOD surface where there is none, for any
+        // neighbour tap (LOD ambient occlusion) or ray (LOD shadows) that crosses the handoff.
+        // Now that the opaque LODs are down and culling has run, reset those pixels (stencil 0 = vanilla
+        // terrain) to the far plane so they read as "no LOD here". Upstream does the same from 0.2.13 on,
+        // and it is what VOXY >= 2 promises a pack; skipShaderDepthHackFix in voxy.json opts out.
+        if (this.shaderDepthHackFixTransformBlit != null) {
+            this.fb.bind();
+            glEnable(GL_DEPTH_TEST);
+            glColorMask(false, false, false, false);
+            glDepthFunc(GL_ALWAYS);
+            glStencilFunc(GL_EQUAL, 0, 0xFF);//set the depth to 1 where the mask is 0
+            this.shaderDepthHackFixTransformBlit.blit();
+            glStencilFunc(GL_EQUAL, 1, 0xFF);//revert the mask test
+            glDepthFunc(GL_LEQUAL);
+            glColorMask(true, true, true, true);
+        }
+
+        glTextureBarrier();
+
         int msk = GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT;
         if (true) {//TODO: make shader specified
             if (false) {//TODO: only do this if shader specifies

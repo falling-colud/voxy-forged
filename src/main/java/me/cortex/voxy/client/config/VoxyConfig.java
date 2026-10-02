@@ -16,10 +16,14 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 public class VoxyConfig {
+    // excludeFieldsWithModifiers REPLACES Gson's default exclusions (static, transient) rather than adding
+    // to them, so they have to be listed again. With only PRIVATE here, the public constant
+    // MAX_CLOUD_DISTANCE was written into the file, and reading a 'static final' field back throws -
+    // which reset every setting to its default on each launch after the first save.
     private static final Gson GSON = new GsonBuilder()
             .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
             .setPrettyPrinting()
-            .excludeFieldsWithModifiers(Modifier.PRIVATE)
+            .excludeFieldsWithModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.TRANSIENT)
             .create();
 
     public static VoxyConfig CONFIG = loadOrCreate();

@@ -195,6 +195,22 @@ neoForge {
     runs {
         client {
             client()
+            // -PrunDir=<dir> keeps a throwaway game directory apart from the everyday dev one in run/.
+            if (project.hasProperty('runDir')) {
+                gameDirectory = file(project.property('runDir').toString())
+            }
+            // ./gradlew runClient -PquickPlay="New World" boots straight into that save.
+            if (project.hasProperty('quickPlay')) {
+                programArguments.addAll('--quickPlaySingleplayer', project.property('quickPlay').toString())
+            }
+            // -PdevShots=<script> runs a screenshot script once the world is up (me.cortex.voxy.client.dev.DevShots).
+            if (project.hasProperty('devShots')) {
+                systemProperty 'voxy.devShots', file(project.property('devShots').toString()).absolutePath
+            }
+            // -PrunJvmArgs="-Xmx3G -Dvoxy.geometryBufferSizeOverrideMB=512" for a run on a machine short of memory.
+            if (project.hasProperty('runJvmArgs')) {
+                jvmArguments.addAll(project.property('runJvmArgs').toString().trim().split('\\s+'))
+            }
         }
     }
 
@@ -299,6 +315,8 @@ jar {
     from("LICENSE") {
         rename { "${it}_${project.archives_base_name}"}
     }
+    // Dev-run tooling (scripted screenshots); never part of a release.
+    exclude 'me/cortex/voxy/client/dev/**'
 }
 
 // Validate mixin configuration (registration, exclusions, remap flags)

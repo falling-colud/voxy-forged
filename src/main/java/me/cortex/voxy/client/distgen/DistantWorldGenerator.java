@@ -29,9 +29,9 @@ import java.util.concurrent.CompletableFuture;
  *
  * "Smart":   skips chunks already ingested (persistent bitmap), recenters as the player
  *            moves, throttles on server MSPT and Voxy ingest/saving backlog.
- * "Fast":    generates only to ChunkStatus.LIGHT (all blocks, biomes and lighting exist
- *            at that point) - skipping SPAWN/FULL promotion, entity spawning and ticking.
- *            Generation itself runs on the vanilla chunk-system worker pool.
+ * "Fast":    waits only for ChunkStatus.LIGHT (all blocks, biomes and lighting exist at that
+ *            point) and never loads a chunk as ticking. Generation itself runs on the vanilla
+ *            chunk-system worker pool.
  * "Layered": concentric distance-sorted rings; the nearest missing terrain always
  *            generates first, so LOD coverage grows outward smoothly.
  *
@@ -43,8 +43,11 @@ import java.util.concurrent.CompletableFuture;
  * All methods must be called on the server thread.
  */
 public class DistantWorldGenerator {
-    //Generating to LIGHT means block states, biomes and light are all present, which is
-    // everything the voxel ingest needs; everything after (SPAWN, FULL) is pure overhead here
+    //At LIGHT block states, biomes and light are all present, which is everything the voxel ingest needs.
+    //The ticket level for LIGHT is 33 - the same level as a full (non-ticking) chunk, since vanilla has no
+    // level that stops between INITIALIZE_LIGHT and FULL - so most chunks carry on to FULL before the
+    // ticket is released. That costs some server-thread time per chunk, and leaves them saved as finished
+    // chunks that load instantly when the player gets there.
     private static final ChunkStatus TARGET_STATUS = ChunkStatus.LIGHT;
     private static final int TICKET_LEVEL = ChunkLevel.byStatus(TARGET_STATUS);
     private static final TicketType<ChunkPos> TICKET = TicketType.create("voxy_distant_gen", Comparator.comparingLong(ChunkPos::toLong));

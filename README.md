@@ -60,7 +60,7 @@ You might wonder: "Why not just use the Fabric version with [Sinytra Connector](
 
 ## Status
 
-**1.0.0** - Stable. Built and tested against the modern Sodium 0.8 backport for 1.21.1.
+**1.1.0** - Stable. Built and tested against the modern Sodium 0.8 backport for 1.21.1. See [CHANGELOG.md](CHANGELOG.md).
 
 ### Working Features
 - LOD terrain rendering beyond vanilla render distance
@@ -68,13 +68,15 @@ You might wonder: "Why not just use the Fabric version with [Sinytra Connector](
 - LOD colour/brightness matching, tunable live with `/voxy colorfix`
 - Optional seamless world curvature, tunable live with `/voxy curvefix`
 - Consistent water surface height across LOD levels
-- Fog integration (disabled at LOD boundaries)
+- LOD fog that follows the game's real fog (and Better Fog, when installed)
+- Background distant generation on singleplayer/LAN worlds (`/voxy distantgen status|pause|resume|reset`)
+- Iris shaderpacks that ship Voxy support (`voxy.json`), e.g. Complementary, BSL, Photon
 - Block model baking for all render types (solid, cutout, cutout_mipped, translucent)
 - Delayed chunk unloading to prevent pop-out effects
 
 ### Current Limitations
 - Requires Sodium 0.8.12-beta.2 (NeoForge version) — the modern Sodium 0.8 backport for MC 1.21.1
-- Some optional integrations not yet ported (Iris, Nvidium, Vivecraft)
+- Some optional integrations not yet ported (Nvidium, Vivecraft)
 - The in-game Voxy page inside Sodium's video settings is not available (Sodium 0.8 rewrote that API); configure Voxy via the Mods config menu instead
 - Debug screen integration disabled (MC 1.21.1 API changes)
 
