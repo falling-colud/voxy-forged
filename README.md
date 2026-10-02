@@ -117,7 +117,7 @@ cd voxy-forged
 ./gradlew build
 ```
 
-On Windows, use `gradlew.bat build` in Command Prompt, or `.\gradlew.bat build` in PowerShell.
+On Windows, run `.\gradlew.bat build` instead (Command Prompt or PowerShell).
 
 The built JAR is `build/libs/voxy-<version>.jar`. The first build takes a few minutes while NeoForge sets up Minecraft; later builds take seconds.
 
