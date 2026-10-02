@@ -109,13 +109,17 @@ You might wonder: "Why not just use the Fabric version with [Sinytra Connector](
 
 ## Building from Source
 
+You need **JDK 21** (for example [Temurin 21](https://adoptium.net/temurin/releases/?version=21)) and an internet connection. Nothing else: the Gradle wrapper downloads Gradle itself, and Python is optional (it only runs extra validation scripts, which are skipped without it).
+
 ```bash
 git clone https://github.com/falling-colud/voxy-forged.git
 cd voxy-forged
 ./gradlew build
 ```
 
-The built JAR will be in `build/libs/`.
+On Windows, use `gradlew.bat build` in Command Prompt, or `.\gradlew.bat build` in PowerShell.
+
+The built JAR is `build/libs/voxy-<version>.jar`. The first build takes a few minutes while NeoForge sets up Minecraft; later builds take seconds.
 
 ## Contributing
 

@@ -24,7 +24,11 @@ def isInGHA = System.getenv("GITHUB_ACTIONS") == "true"
 // `python` / `py` but not `python3`, while most *nix/CI boxes only have
 // `python3` — hardcoding either one breaks the build on the other. Probe the
 // candidates once at configuration time and reuse the winner.
-def resolveExecutable = { List<String> candidates, String fallback ->
+// Returns null when there is none. Python only runs the mixin validation scripts, which are a
+// development aid: someone who clones the repo to build the jar must not need Python for it.
+// (A stock Windows has `python`/`python3` stubs that print a Store hint and exit non-zero, so
+// "not found" has to mean "did not answer --version", not "could not be started".)
+def resolveExecutable = { List<String> candidates ->
     for (String cmd : candidates) {
         try {
             def probe = new ProcessBuilder([cmd, '--version']).redirectErrorStream(true).start()
@@ -32,9 +36,13 @@ def resolveExecutable = { List<String> candidates, String fallback ->
             if (probe.waitFor() == 0) return cmd
         } catch (ignored) { /* not on PATH — try the next candidate */ }
     }
-    return fallback
+    return null
 }
-def pythonExe = resolveExecutable(['python3', 'python', 'py'], 'python3')
+// -PskipMixinValidation builds without the validation scripts even when Python is installed.
+def pythonExe = project.hasProperty('skipMixinValidation') ? null : resolveExecutable(['python3', 'python', 'py'])
+if (pythonExe == null) {
+    logger.lifecycle('Mixin validation scripts skipped (no Python found, or -PskipMixinValidation). The jar builds the same.')
+}
 
 version = project.mod_version
 group = project.maven_group
@@ -324,16 +332,16 @@ task validateMixinConfig(type: Exec) {
     description = 'Validates mixin registration, exclusions, and configuration'
     group = 'verification'
 
-    commandLine pythonExe, 'scripts/validate_mixin_config.py'
+    commandLine pythonExe ?: 'python3', 'scripts/validate_mixin_config.py'
 
     // The scripts print ✓/✗ status glyphs; force UTF-8 stdio so they don't blow
     // up on Windows' default cp1252 console encoding (UnicodeEncodeError).
     environment 'PYTHONIOENCODING', 'utf-8'
     environment 'PYTHONUTF8', '1'
 
-    // Only run if script exists
+    // Only run if there is a Python to run it with and the script exists
     onlyIf {
-        file('scripts/validate_mixin_config.py').exists()
+        pythonExe != null && file('scripts/validate_mixin_config.py').exists()
     }
 }
 
@@ -342,13 +350,14 @@ task validateMixinSignatures(type: Exec) {
     description = 'Validates @Inject/@Shadow targets against Minecraft source'
     group = 'verification'
 
-    commandLine pythonExe, 'scripts/validate_mixin_targets.py'
+    commandLine pythonExe ?: 'python3', 'scripts/validate_mixin_targets.py'
 
     environment 'PYTHONIOENCODING', 'utf-8'
     environment 'PYTHONUTF8', '1'
 
     // Only run if script and MC sources exist
     onlyIf {
+        pythonExe != null &&
         file('scripts/validate_mixin_targets.py').exists() &&
         file('.reference/minecraft/1.21.1/decompiled').exists()
     }
@@ -364,14 +373,14 @@ task validateMixins(type: Exec) {
     description = 'Validates that all mixins declared in JSON configs are present in the JAR'
     group = 'verification'
 
-    commandLine pythonExe, 'scripts/validate_mixins.py'
+    commandLine pythonExe ?: 'python3', 'scripts/validate_mixins.py'
 
     environment 'PYTHONIOENCODING', 'utf-8'
     environment 'PYTHONUTF8', '1'
 
-    // Only run if script exists
+    // Only run if there is a Python to run it with and the script exists
     onlyIf {
-        file('scripts/validate_mixins.py').exists()
+        pythonExe != null && file('scripts/validate_mixins.py').exists()
     }
 }
 
